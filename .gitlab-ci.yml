@@ -1,0 +1,26 @@
+stages:
+  - test
+  - deploy
+
+Deploy Release:
+  stage: deploy
+  tags:
+    - release
+  only:
+    - main
+  variables:
+    PROJECT_NAME: 'CHATBOT-MSTEAMS'
+    NODE_VERSION: 'v14.21.3'
+  before_script:
+    - export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh" --no-use #load nvm
+    - nvm install $NODE_VERSION
+    - nvm use --delete-prefix $NODE_VERSION
+    - npm install pm2 -g
+  script:
+    - cp $ENV .env
+    - npm i
+    - pm2 delete "$PROJECT_NAME" || exit_code=$?
+    - if [ ${exit_code} -ne 0 ]; then echo "Servico nao carregado no pm2" ; else echo "Servico removido do pm2"; fi
+    - pm2 start npm --name "CHATBOT-MSTEAMS" -- start -- --port 3355
+  environment:
+    name: $PROJECT_NAME
