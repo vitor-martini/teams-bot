@@ -1,31 +1,29 @@
-# echo-bot
+# Assistente Virtual
 
-Demonstrate the core capabilities of the Microsoft Bot Framework
-
-This bot has been created using [Bot Framework](https://dev.botframework.com), it shows how to create a simple bot that accepts input from the user and echoes it back.
+This bot has been created using [Bot Framework](https://dev.botframework.com), it brings information about the status of projects.
 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org) version 10.14.1 or higher
 
-    ```bash
-    # determine node version
-    node --version
-    ```
+  ```bash
+  # determine node version
+  node --version
+  ```
 
 ## To run the bot
 
 - Install modules
 
-    ```bash
-    npm install
-    ```
+  ```bash
+  npm install
+  ```
 
 - Start the bot
 
-    ```bash
-    npm start
-    ```
+  ```bash
+  npm start
+  ```
 
 ## Testing the bot using Bot Framework Emulator
 
@@ -39,10 +37,21 @@ This bot has been created using [Bot Framework](https://dev.botframework.com), i
 - File -> Open Bot
 - Enter a Bot URL of `http://localhost:3978/api/messages`
 
-## Deploy the bot to Azure
+## Deploy the bot to Teams
 
-To learn more about deploying a bot to Azure, see [Deploy your bot to Azure](https://aka.ms/azuredeployment) for a complete list of deployment instructions.
-
+- Search for "Developer Portal" on Teams app store. First we need to create the bot, after that the app.
+- Tools -> Bot management -> New Bot.
+  - Give a name to the bot.
+  - On "Configure" tab, put que URL where the bot is deployed followed by /api/messages e.g. `https://bot-inovan.do/api/messages`.
+  - On "Client secrets" tab, click on "Add a client secret for your bot". Copy the generated GUID.
+  - Back on "Tools -> Bot management" copy the Bot GUID.
+  - Change the .env file where the bot is deployed. The MicrosoftAppId var needs to match the Bot generate ID and MicrosoftAppPassword the bot generated password.
+- Back on the Developer Portal on teams, go to Apps -> New App.
+  - Give a name to the app.
+  - Complete the mandatory fields.
+  - Go to Configure -> App Features -> Bots.
+  - On "Select and existing bot" combo, select the created bot.
+- Save and publish. After that the members of the team can add the app on their teams account.
 
 ## Further reading
 

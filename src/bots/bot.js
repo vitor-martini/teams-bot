@@ -1,98 +1,70 @@
 const { 
-  TeamsActivityHandler, 
-  MessageFactory,
-  TeamsInfo,
-  Activity, 
-  ActivityHandler, 
-  ActivityTypes, 
-  Mention, 
-  BotState,
-  ChannelAccount,
-  ConversationState,
-  StatePropertyAccessor,
-  TurnContext,
-  UserState 
+  TeamsActivityHandler
 } = require('botbuilder');
-const {
-  Dialog,
-  DialogState 
-} = require('botbuilder-dialogs');
-const { MainDialog } = require('../dialogs/mainDialog');
+const CommandEnum = require('../enums/commandEnum');
+const { project, help, devHours, ticket, defaultAnswer, channel } = require('../commands/commands');
 
 class InovandoBot extends TeamsActivityHandler {
-  constructor(
-    conversationState,
-    userState,
-    dialog
-  ) {
+  constructor() {
     super();
-
-    if (!conversationState) {
-      throw new Error('[InovandoBot]: Missing parameter. conversationState is required');
-    }
-    if (!userState) {
-        throw new Error('[InovandoBot]: Missing parameter. userState is required');
-    }
-    if (!dialog) {
-        throw new Error('[InovandoBot]: Missing parameter. dialog is required');
-    }
-
-    this.conversationState = conversationState;
-    this.userState = userState;
-    this.dialog = dialog;
-    this.dialogState = this.conversationState.createProperty('DialogState');
-
+    this.conversationReferences = [];
 
     this.onMessage(async (context, next) => {
-      await this.dialog.run(context, this.dialogState);
-
-      // By calling next() you ensure that the next BotHandler is run.
+      const text = context.activity.text.trim().toLowerCase();
+      if (!text.startsWith('!')) 
+        return;
+      
+      const response = await this.getResponse(text, context);
+      await context.sendActivity(response);  
       await next();
     });
-
-    this.onDialog(async (context, next) => {
-      // Save any state changes. The load happened during the execution of the Dialog.
-      await this.conversationState.saveChanges(context, false);
-      await this.userState.saveChanges(context, false);
-
-      // By calling next() you ensure that the next BotHandler is run.
-      await next();
-    });
-
   }
 
-  async handleMessage(context, next) {
+  async getResponse(text, context = null){
+    const command = this.getCommand(text);
+    const flags = this.getFlag(text);
+    let response = '';
 
-    await(this.dialog).run(context, this.dialogState);
-    
-    const replyText = `echo: *${ context.activity.text }*`; 
-    await context.sendActivity(MessageFactory.text(replyText)); 
-
-    await next();
+    switch(command) {
+      case CommandEnum.ADM:
+      case CommandEnum.PONTO:
+      case CommandEnum.INTRANET:
+      case CommandEnum.COMISSAO:
+      case CommandEnum.SJ:
+      case CommandEnum.RETOMADOS:
+      case CommandEnum.RECOVERY:
+          response = project(this.getProjectName(command), flags);
+          break;
+      case CommandEnum.HELP:
+          response = help();
+          break;
+      case CommandEnum.HORASDEV:
+          response = devHours();
+          break;
+      case CommandEnum.TICKET:
+          response = ticket(flags);
+          break;
+      case CommandEnum.CANAL:
+          response = await channel(this.conversationReferences, context);
+          break;
+      default:
+          response = defaultAnswer();
+    }
+  
+    return response;
   }
 
-  async getMemberTeamsInfo(context) {
-    const userId = context.activity.from.aadObjectId;
-    const member = await TeamsInfo.getMember(context, userId);
-    return member;
+  getProjectName(command) {
+    return command.replace("!","");
   }
 
-  async messageWithMention(context) {    
-    const mention = {
-        mentioned: context.activity.from,
-        text: `<at>${context.activity.from.name}</at>`,
-        type: 'mention'
-    };
-
-    const message = {
-        entities: [mention],
-        text: `${mention.text} You said '${ context.activity.text }'`,
-        type: ActivityTypes.Message
-    };
-
-    await context.sendActivity(message);
+  getCommand(inputString) {
+    return inputString.split(/\s+/)[0];
   }
 
+  getFlag(inputString) {
+    return inputString.split(' ').slice(1); 
+  }  
 }
 
 module.exports.InovandoBot = InovandoBot;
