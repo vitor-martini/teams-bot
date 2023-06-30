@@ -1,4 +1,4 @@
-const { Project } = require('../projects/project');
+const { Project } = require('./projects');
 const { 
   TurnContext,
   TeamsInfo
@@ -32,7 +32,7 @@ function help() {
 }
 
 function devHours() {
-  let response = `Horas dev...`;
+  const response = `Horas dev...`;
   return response;
 }
 
@@ -50,10 +50,10 @@ function ticket(flags) {
 }
 
 async function channel(conversationReferences, context) {    
-  let reference = TurnContext.getConversationReference(context.activity)
+  const reference = TurnContext.getConversationReference(context.activity)
   delete reference.activityId;
 
-  let member = await getMemberTeamsInfo(context)
+  const member = await getMemberTeamsInfo(context)
   reference.member = member;
   addReference(reference, conversationReferences)
 
@@ -82,11 +82,26 @@ function defaultAnswer() {
   return "Comando inválido. !help para listar todos os comandos.";
 }
 
+const CommandEnum = Object.freeze({
+  ADM: "!adm",
+  PONTO: "!ponto",
+  INTRANET: "!intranet",
+  COMISSAO: "!comissao",
+  SJ: "!sj",
+  RETOMADOS: "!retomados",
+  RECOVERY: "!recovery",
+  HELP: "!help",
+  HORASDEV: "!horas-dev",
+  TICKET: "!ticket",
+  CANAL: "!canal"
+});
+
 module.exports = {
   project,
   help,
   devHours,
   ticket,
   channel,
-  defaultAnswer
+  defaultAnswer,
+  CommandEnum
 };
