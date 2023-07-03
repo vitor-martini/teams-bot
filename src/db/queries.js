@@ -13,6 +13,10 @@ const queries = {
   selectID: (table, id) => {
     const query = `SELECT * FROM ${table} WHERE ID = ${id}`;
     return query;
+  },
+  deleteID: (table, id) => {
+    const query = `DELETE FROM ${table} WHERE ID = ${id}`;
+    return query;
   }
 };
 

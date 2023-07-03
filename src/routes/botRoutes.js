@@ -2,19 +2,36 @@ const express = require('express');
 const router = express.Router();
 const { BotFrameworkAdapter } = require('botbuilder');
 const InovandoBotController = require('../controllers/inovandoBotController')
-const cron = require('node-cron');
-const { v4: uuidv4 } = require('uuid');
+const Task = require('../models/task')
 const _ = require('lodash');
 const db = require('../db/connection');
 const queries = require('../db/queries');
-const { dataToReference } = require('../models/conversationReference');
 
 const adapter = new BotFrameworkAdapter({
   appId: process.env.MicrosoftAppId,
   appPassword: process.env.MicrosoftAppPassword,
 });
-
 const inovandoBotController = new InovandoBotController();
+const tasks = {};
+
+router.get('/', async (req, res) => { 
+  try {
+    const query = queries.selectAll('schedule');
+    const scheduledTasks = await db.any(query);
+    for (let scheduledTask of scheduledTasks) {
+      let task = new Task(scheduledTask.command, 
+                          scheduledTask.cron_schedule, 
+                          scheduledTask.conversation_reference_id,
+                          scheduledTask.id);        
+      await task.schedule(adapter, inovandoBotController);
+
+      if(task.taskReference) 
+        tasks[task.id] = {task};      
+    }
+  } catch (error) {
+    console.error(`Erro ao buscar agendamentos: ${error}`);
+  }
+});
 
 router.post('/api/messages', (req, res) => {
   adapter.processActivity(req, res, async (context) => {
@@ -23,9 +40,8 @@ router.post('/api/messages', (req, res) => {
 });
 
 router.get('/api/conversation-references', async (req, res) => {
-  const query = queries.selectAll('conversation_reference');
-
   try {
+    const query = queries.selectAll('conversation_reference');
     const conversationReferences = await db.any(query);
     res.send(conversationReferences);  
   } catch (error) {
@@ -34,69 +50,51 @@ router.get('/api/conversation-references', async (req, res) => {
   }
 });
 
-const tasks = {};
-router.post('/api/schedule', async (req, res) => {
-  const commandText = req.body.command;
-  const schedule = req.body.schedule;
+router.post('/api/schedule', async (req, res) => {  
+  const command = req.body.command;
+  const cronSchedule = req.body.cronSchedule;
   const conversationReferenceId = req.body.conversationReferenceId;
-  let conversationReference;
 
-  const query = queries.selectID('conversation_reference', conversationReferenceId);
-  try {
-    const data = await db.oneOrNone(query);
-    if (!data) {
-      res.status(404).send('Conversa não encontrada!');
-      return;
-    };
-    conversationReference = dataToReference(data);
-  } catch (error) {
-    console.error(`Erro ao buscar referências de conversa: ${error}`);
-    res.status(500).send('Erro ao buscar referências de conversa');  
-  } 
+  const task = new Task(command, 
+                        cronSchedule, 
+                        conversationReferenceId);        
 
-  const response = await inovandoBotController.getResponse(commandText)
+  await task.schedule(adapter, inovandoBotController);
+  await task.insert();
 
-  const taskId = uuidv4();
-  const task = cron.schedule(schedule, async () => {
-    adapter.continueConversation(conversationReference, async turnContext => {
-      await turnContext.sendActivity(response);
-    });
-  });
-
-  tasks[taskId] = {
-    conversationReferenceId: conversationReferenceId,
-    command: commandText,
-    schedule: schedule,
-    created_at: new Date(),
-    task: task, 
-};
-
-  res.send({ message: 'Mensagem agendada com sucesso!', id: taskId });
+  if(!task.taskReference)
+    res.status(500).send('Houve um problema ao agendar a tarefa!');  
+  
+  res.send(`Tarefa agendada com sucesso! ID: ${task.id}`);
+  tasks[task.id] = task;     
 });
 
-router.delete('/api/schedule/:taskId', (req, res) => {
+router.delete('/api/schedule/:taskId', async (req, res) => {
   const taskId = req.params.taskId;
-  const taskData = tasks[taskId];
-  
-  if (!taskData) {
+  const task = tasks[taskId];
+    
+  if (!task) {
       res.status(404).send('Agendamento não encontrado!');
       return;
   }
 
-  taskData.task.stop(); 
-  delete tasks[taskId];  
+  await task.stop(tasks);  
+  if(tasks[taskId]){
+    res.status(500).send('Erro ao excluir registro no banco de dados.');
+  }
 
   res.send({ message: 'Agendamento excluído com sucesso!', id: taskId });
 });
 
 router.get('/api/schedule', (req, res) => {
-  const viewTasks = _.mapValues(tasks, task => _.omit(task, 'task'));
+  console.log(tasks)
+  const viewTasks = _.mapValues(tasks, task => _.omit(task, 'taskReference'));
   res.send(viewTasks);
 });
 
 router.get('/api/schedule/:conversationReferenceId', (req, res) => {
   const conversationReferenceId = req.params.conversationReferenceId;
-  const viewTasks = _.mapValues(tasks, task => _.omit(task, 'task'));
+  const viewTasks = _.mapValues(tasks, task => _.omit(task, 'taskReference'));
   const filteredTasks = _.filter(viewTasks, t => t.conversationReferenceId === conversationReferenceId);
   res.send(filteredTasks);
 });
