@@ -2,9 +2,7 @@ const { project, help, devHours, ticket, defaultAnswer, channel, CommandEnum } =
 
 class InovandoBot {
 
-  constructor(){
-    this.conversationReferences = [];
-  }
+  constructor(){ }
 
   async getResponse(text, context = null) {
     const command = this.getCommand(text);
@@ -31,7 +29,7 @@ class InovandoBot {
         response = ticket(flags);
         break;
       case CommandEnum.CANAL:
-        response = await channel(this.conversationReferences, context);
+        response = await channel(context);
         break;
       default:
         response = defaultAnswer();

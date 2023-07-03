@@ -4,7 +4,9 @@ const {
   TeamsInfo
 } = require('botbuilder');
 const _ = require('lodash');
-const { v4: uuidv4 } = require('uuid');
+const db = require('../db/connection');
+const queries = require('../db/queries');
+const { referenceToData } = require('./conversationReference');
 
 function project(projectName, flags) {
   const project = new Project(projectName, flags);
@@ -38,26 +40,37 @@ function devHours() {
 
 function ticket(flags) {
   if(flags.length === 0)
-    return "É necessário informar o número do ticket!"
+    return 'É necessário informar o número do ticket!'
   
   const ticketNum = parseInt(flags[0]);  
   
   if (isNaN(ticketNum)) 
-    return "Número do ticket informado é inválido!";
+    return 'Número do ticket informado é inválido!';
   else 
-    return "Dados do ticket " + flags[0];
+    return 'Dados do ticket ' + flags[0];
 
 }
 
-async function channel(conversationReferences, context) {    
+async function channel(context) {    
   const reference = TurnContext.getConversationReference(context.activity)
   delete reference.activityId;
 
   const member = await getMemberTeamsInfo(context)
   reference.member = member;
-  addReference(reference, conversationReferences)
+  
+  const data = referenceToData(reference);
+  const query = queries.insert('conversation_reference', data);
 
-  return `ID do canal: ${reference.id}`;
+  let response = '';
+  try {
+    id = await db.one(query, [], a => a.id);
+    response = `ID do canal: ${id}`;
+  } catch (error) {
+    console.error(`Erro ao inserir no banco de dados: ${error}`);
+    response = 'Ocorreu um erro ao inserir o registro no banco de dados.';
+  }
+  
+  return response;
 }
 
 async function getMemberTeamsInfo(context) {
@@ -67,33 +80,22 @@ async function getMemberTeamsInfo(context) {
   return member;
 }
 
-function addReference(reference, conversationReferences) {
-  
-  for (let item of conversationReferences) {
-    if (_.isEqual(_.omit(item, 'id'), reference)) 
-      return;    
-  }
-
-  reference.id = uuidv4();
-  conversationReferences.push(reference);
-}
-
 function defaultAnswer() {
-  return "Comando inválido. !help para listar todos os comandos.";
+  return 'Comando inválido. !help para listar todos os comandos.';
 }
 
 const CommandEnum = Object.freeze({
-  ADM: "!adm",
-  PONTO: "!ponto",
-  INTRANET: "!intranet",
-  COMISSAO: "!comissao",
-  SJ: "!sj",
-  RETOMADOS: "!retomados",
-  RECOVERY: "!recovery",
-  HELP: "!help",
-  HORASDEV: "!horas-dev",
-  TICKET: "!ticket",
-  CANAL: "!canal"
+  ADM: '!adm',
+  PONTO: '!ponto',
+  INTRANET: '!intranet',
+  COMISSAO: '!comissao',
+  SJ: '!sj',
+  RETOMADOS: '!retomados',
+  RECOVERY: '!recovery',
+  HELP: '!help',
+  HORASDEV: '!horas-dev',
+  TICKET: '!ticket',
+  CANAL: '!canal'
 });
 
 module.exports = {

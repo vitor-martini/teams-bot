@@ -7,7 +7,7 @@ class Project {
     }
 
     response(){
-        if (this.flags[0] == "config") {
+        if (this.flags[0] == 'config') {
             let config = `O projeto requer as seguintes tecnologias: ${info[this.name].config}`; 
             config += ` \nConsulte a disponibilidade do instalador em: ${info.urlFiles}`
             return config;

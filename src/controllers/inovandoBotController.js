@@ -16,10 +16,6 @@ class InovandoBotController extends TeamsActivityHandler {
       await next();
     });
   }
-
-  get conversationReferences() {
-    return this.inovandoBot.conversationReferences;
-  }
   
   async getResponse(text, context){
     return await this.inovandoBot.getResponse(text, context);
